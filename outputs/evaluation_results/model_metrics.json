@@ -1,0 +1,47 @@
+[
+    {
+        "Model": "Logistic Regression",
+        "Accuracy": 0.72,
+        "ROC-AUC": 0.799,
+        "High-Risk Recall": 0.7833,
+        "High-Risk Precision": 0.5222,
+        "High-Risk F1-Score": 0.6267,
+        "Good-Credit Specificity": 0.6929,
+        "Average Precision": 0.6243,
+        "True Positives (TP)": 47,
+        "False Negatives (FN)": 13,
+        "True Negatives (TN)": 97,
+        "False Positives (FP)": 43,
+        "Normalized Risk Cost": 0.54
+    },
+    {
+        "Model": "Decision Tree",
+        "Accuracy": 0.595,
+        "ROC-AUC": 0.6546,
+        "High-Risk Recall": 0.65,
+        "High-Risk Precision": 0.3939,
+        "High-Risk F1-Score": 0.4906,
+        "Good-Credit Specificity": 0.5714,
+        "Average Precision": 0.4627,
+        "True Positives (TP)": 39,
+        "False Negatives (FN)": 21,
+        "True Negatives (TN)": 80,
+        "False Positives (FP)": 60,
+        "Normalized Risk Cost": 0.825
+    },
+    {
+        "Model": "Random Forest",
+        "Accuracy": 0.785,
+        "ROC-AUC": 0.8175,
+        "High-Risk Recall": 0.6,
+        "High-Risk Precision": 0.6545,
+        "High-Risk F1-Score": 0.6261,
+        "Good-Credit Specificity": 0.8643,
+        "Average Precision": 0.6871,
+        "True Positives (TP)": 36,
+        "False Negatives (FN)": 24,
+        "True Negatives (TN)": 121,
+        "False Positives (FP)": 19,
+        "Normalized Risk Cost": 0.695
+    }
+]

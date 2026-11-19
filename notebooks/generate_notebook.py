@@ -1,0 +1,335 @@
+"""
+Script to generate the complete, production-grade Jupyter Notebook:
+credit_scoring_model/notebooks/credit_scoring_analysis.ipynb
+"""
+
+import json
+import os
+
+def create_notebook():
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "# CREDIT SCORING MODEL: PREDICTING CREDITWORTHINESS USING MACHINE LEARNING\n",
+                    "### An End-to-End Applied Machine Learning Project\n",
+                    "\n",
+                    "**Author / Lead ML Engineer:** Machine Learning & Financial Risk Modeling Group  \n",
+                    "**Domain:** Financial Technology (FinTech) & Banking Underwriting  \n",
+                    "**Dataset:** UCI Statlog German Credit Data (1,000 Authentic Records, 20 Attributes)  \n",
+                    "**Target Variable:** Credit Risk (`Good Credit` / `Bad Credit - High Risk`)  \n",
+                    "\n",
+                    "---\n",
+                    "## 1. Executive Summary & Problem Formulation\n",
+                    "Credit scoring is one of the foundational statistical applications in commercial lending and retail banking. When an applicant requests credit (personal loan, automotive financing, or mortgage), the lending institution must assess the likelihood of default (`creditworthiness`).\n",
+                    "\n",
+                    "### The Asymmetric Cost of Credit Risk Errors:\n",
+                    "- **False Negative (FN):** Classifying a high-risk defaulting borrower as creditworthy. This causes severe capital loss (loss of principal balance), typically estimated at **4x to 5x** the cost of a false rejection.\n",
+                    "- **False Positive (FP):** Classifying a reliable borrower as high-risk. This incurs an opportunity cost (lost interest income and customer dissatisfaction).\n",
+                    "\n",
+                    "Therefore, the positive target class in this study is defined as **High Credit Risk (`bad` = 1)**, prioritizing **High-Risk Recall** and **ROC-AUC** alongside overall accuracy."
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 2. Environment Setup and Library Imports"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "import os\n",
+                    "import sys\n",
+                    "import joblib\n",
+                    "import numpy as np\n",
+                    "import pandas as pd\n",
+                    "import matplotlib.pyplot as plt\n",
+                    "import seaborn as sns\n",
+                    "\n",
+                    "# Ensure project modules are resolvable\n",
+                    "sys.path.append(os.path.abspath('..'))\n",
+                    "from src.data_preprocessing import load_dataset, prepare_train_test_split, build_preprocessor_pipeline\n",
+                    "from src.feature_engineering import FinancialFeatureEngineer\n",
+                    "from src.prediction import predict_credit_risk, batch_predict\n",
+                    "\n",
+                    "sns.set_theme(style='whitegrid', palette='deep')\n",
+                    "plt.rcParams.update({'figure.dpi': 120, 'font.size': 10})\n",
+                    "print('Environment and libraries initialized successfully.')"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 3. Dataset Loading, Inspection & Provenance\n",
+                    "We utilize the authentic **Statlog German Credit Dataset** sourced from the UCI Machine Learning Repository and OpenML (ID: `credit-g`). It contains 1,000 real applicant observations across 20 financial and demographic indicators."
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "data_path = '../data/credit_dataset.csv'\n",
+                    "df = pd.read_csv(data_path)\n",
+                    "\n",
+                    "print(f'Dataset Shape: {df.shape[0]} rows x {df.shape[1]} columns')\n",
+                    "print(f'Missing Values: {df.isnull().sum().sum()}')\n",
+                    "print('\\nTarget Class Balance:')\n",
+                    "print(df['class'].value_counts())\n",
+                    "print('\\nPercentage Distribution:')\n",
+                    "print(df['class'].value_counts(normalize=True) * 100)\n",
+                    "df.head()"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 4. Exploratory Data Analysis (EDA)\n",
+                    "Let's explore the key distributions, financial exposure differences, and risk drivers."
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# 1. Visualizing Target Distribution\n",
+                    "plt.figure(figsize=(6, 4))\n",
+                    "ax = sns.countplot(data=df, x='class', palette=['#2b5c8f', '#d95f02'])\n",
+                    "plt.title('Credit Risk Class Imbalance (70% Good vs 30% Bad)')\n",
+                    "plt.xlabel('Credit Risk Class')\n",
+                    "plt.ylabel('Applicant Count')\n",
+                    "for p in ax.patches:\n",
+                    "    ax.annotate(f'{p.get_height()}', (p.get_x() + p.get_width() / 2., p.get_height() / 2),\n",
+                    "                ha='center', va='center', color='white', fontweight='bold')\n",
+                    "plt.tight_layout()\n",
+                    "plt.show()"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# 2. Credit Amount and Loan Duration Distribution by Risk\n",
+                    "fig, axes = plt.subplots(1, 2, figsize=(12, 4))\n",
+                    "sns.boxplot(x='class', y='credit_amount', data=df, ax=axes[0], palette=['#4575b4', '#d73027'])\n",
+                    "axes[0].set_title('Requested Credit Amount by Risk Class')\n",
+                    "\n",
+                    "sns.boxplot(x='class', y='duration', data=df, ax=axes[1], palette=['#4575b4', '#d73027'])\n",
+                    "axes[1].set_title('Loan Duration in Months by Risk Class')\n",
+                    "plt.tight_layout()\n",
+                    "plt.show()"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# 3. Checking Account Liquidity vs Default Rate\n",
+                    "checking_risk = df.groupby('checking_status')['class'].apply(lambda s: (s == 'bad').mean() * 100).sort_values(ascending=False)\n",
+                    "plt.figure(figsize=(8, 4))\n",
+                    "sns.barplot(x=checking_risk.values, y=checking_risk.index, palette='Reds_r')\n",
+                    "plt.title('High-Risk Default Rate by Checking Account Status (%)')\n",
+                    "plt.xlabel('Bad Credit Proportion (%)')\n",
+                    "plt.tight_layout()\n",
+                    "plt.show()"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 5. Domain Feature Engineering\n",
+                    "Raw financial variables can be combined into highly predictive credit indicators:\n",
+                    "1. `monthly_payment_burden = credit_amount / duration`\n",
+                    "2. `credit_to_age_ratio = credit_amount / age`\n",
+                    "3. `liquidity_buffer_score = checking_status_score + savings_status_score`\n",
+                    "4. `high_burden_flag = (installment_commitment >= 4) & (monthly_burden > 150)`\n",
+                    "5. `stability_composite = (employment_tenure * 1.5) + residence_tenure`"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "fe = FinancialFeatureEngineer()\n",
+                    "df_eng = fe.fit_transform(df.drop(columns=['class']))\n",
+                    "print('Engineered feature matrix preview:')\n",
+                    "df_eng[['monthly_payment_burden', 'credit_to_age_ratio', 'high_burden_flag', 'liquidity_buffer_score', 'stability_composite']].head()"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 6. Preprocessing & Stratified Train-Test Splitting\n",
+                    "We apply a strict **80/20 stratified split** ensuring zero data leakage. All imputations, scalers, and one-hot encoders are fitted strictly on the training partition."
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "X_train, X_test, y_train, y_test = prepare_train_test_split(df, test_size=0.2, random_state=42)\n",
+                    "print(f'Training Samples: {len(X_train)} (Bad Credit Count: {y_train.sum()})')\n",
+                    "print(f'Test Samples:     {len(X_test)} (Bad Credit Count: {y_test.sum()})')\n",
+                    "\n",
+                    "preprocessor = build_preprocessor_pipeline()\n",
+                    "X_train_trans = preprocessor.fit_transform(X_train)\n",
+                    "X_test_trans = preprocessor.transform(X_test)\n",
+                    "print(f'Feature Matrix Dimensions: {X_train_trans.shape[1]} columns')"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 7. Machine Learning Algorithms Benchmark\n",
+                    "We train and tune three distinct machine learning paradigms:\n",
+                    "1. **Logistic Regression (Linear Regularized Model)**\n",
+                    "2. **Decision Tree Classifier (Non-linear Rule-based Model)**\n",
+                    "3. **Random Forest Classifier (Ensemble Bagging Model)**"
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "# Load pre-trained, tuned model pipelines\n",
+                    "lr_pipe = joblib.load('../models/logistic_regression_model.joblib')\n",
+                    "dt_pipe = joblib.load('../models/decision_tree_model.joblib')\n",
+                    "rf_pipe = joblib.load('../models/random_forest_model.joblib')\n",
+                    "\n",
+                    "comparison_df = pd.read_csv('../outputs/evaluation_results/model_comparison.csv')\n",
+                    "print('Test Set Performance Benchmark:')\n",
+                    "display(comparison_df[['Model', 'Accuracy', 'ROC-AUC', 'High-Risk Recall', 'High-Risk Precision', 'High-Risk F1-Score', 'Normalized Risk Cost']])"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 8. Model Evaluation Visualizations\n",
+                    "Let's display the generated ROC Curves, Confusion Matrices, and Random Forest Feature Importances."
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "from IPython.display import Image, display\n",
+                    "\n",
+                    "print('ROC Curves:')\n",
+                    "display(Image('../outputs/graphs/08_roc_curves.png'))\n",
+                    "\n",
+                    "print('Confusion Matrices (TP, FP, TN, FN):')\n",
+                    "display(Image('../outputs/graphs/07_confusion_matrices.png'))\n",
+                    "\n",
+                    "print('Top 15 Random Forest Feature Importances:')\n",
+                    "display(Image('../outputs/graphs/11_feature_importance_rf.png'))"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 9. Real-Time Inference & Explainability Function\n",
+                    "Let's run a live creditworthiness prediction on two distinct applicant profiles."
+                ]
+            },
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    "sample_high_risk = {\n",
+                    "    'checking_status': '<0',\n",
+                    "    'duration': 48,\n",
+                    "    'credit_history': 'delayed previously',\n",
+                    "    'purpose': 'business',\n",
+                    "    'credit_amount': 9500,\n",
+                    "    'savings_status': '<100',\n",
+                    "    'employment': '<1',\n",
+                    "    'installment_commitment': 4,\n",
+                    "    'personal_status': 'male single',\n",
+                    "    'other_parties': 'none',\n",
+                    "    'residence_since': 1,\n",
+                    "    'property_magnitude': 'no known property',\n",
+                    "    'age': 22,\n",
+                    "    'other_payment_plans': 'bank',\n",
+                    "    'housing': 'rent',\n",
+                    "    'existing_credits': 2,\n",
+                    "    'job': 'unskilled resident',\n",
+                    "    'num_dependents': 1,\n",
+                    "    'own_telephone': 'none',\n",
+                    "    'foreign_worker': 'yes'\n",
+                    "}\n",
+                    "\n",
+                    "prediction = predict_credit_risk(sample_high_risk, model_path='../models/best_credit_model.joblib')\n",
+                    "print(f\"Predicted Class:      {prediction['predicted_risk_label']}\")\n",
+                    "print(f\"High-Risk Probability: {prediction['high_risk_probability']:.2%}\")\n",
+                    "print(f\"Model Confidence:      {prediction['model_confidence']:.2%}\")\n",
+                    "print('\\nKey Explanatory Risk Factors:')\n",
+                    "for factor in prediction['key_risk_factors']:\n",
+                    "    print(f\" - {factor}\")\n",
+                    "print(f\"\\n{prediction['limitations_disclaimer']}\")"
+                ]
+            },
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "## 10. Fairness, Ethics, and Regulatory Constraints\n",
+                    "In production credit decisioning systems, strict regulatory standards apply:\n",
+                    "1. **Disparate Impact & Protected Classes:** Features such as `personal_status` (encoding sex and marital status), `foreign_worker`, and `age` must be audited for disparate impact under the Equal Credit Opportunity Act (ECOA) and EU Artificial Intelligence Act.\n",
+                    "2. **Adverse Action Transparency:** Applicants denied credit have a legal right to adverse action notices detailing the specific factors that contributed to rejection.\n",
+                    "3. **Human-in-the-Loop Governance:** Automated classification should serve as underwriting decision support rather than an unchecked automated rejection engine."
+                ]
+            }
+        ],
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3"
+            },
+            "language_info": {
+                "name": "python",
+                "version": "3.11.2"
+            }
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5
+    }
+
+    notebook_path = 'credit_scoring_model/notebooks/credit_scoring_analysis.ipynb'
+    with open(notebook_path, 'w', encoding='utf-8') as f:
+        json.dump(notebook, f, indent=2)
+    print(f"Jupyter Notebook successfully created at: {notebook_path}")
+
+if __name__ == '__main__':
+    create_notebook()

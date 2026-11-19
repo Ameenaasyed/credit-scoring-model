@@ -1,0 +1,28 @@
+{
+    "Logistic Regression": {
+        "best_params": {
+            "classifier__C": 0.05,
+            "classifier__solver": "liblinear"
+        },
+        "cv_roc_auc": 0.7839285714285713
+    },
+    "Decision Tree": {
+        "best_params": {
+            "classifier__criterion": "gini",
+            "classifier__max_depth": 8,
+            "classifier__min_samples_leaf": 10,
+            "classifier__min_samples_split": 10
+        },
+        "cv_roc_auc": 0.7108258928571429
+    },
+    "Random Forest": {
+        "best_params": {
+            "classifier__max_depth": 12,
+            "classifier__max_features": "log2",
+            "classifier__min_samples_leaf": 2,
+            "classifier__min_samples_split": 5,
+            "classifier__n_estimators": 200
+        },
+        "cv_roc_auc": 0.8066220238095237
+    }
+}

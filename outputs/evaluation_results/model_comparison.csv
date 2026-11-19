@@ -1,0 +1,4 @@
+Model,Accuracy,ROC-AUC,High-Risk Recall,High-Risk Precision,High-Risk F1-Score,Good-Credit Specificity,Average Precision,True Positives (TP),False Negatives (FN),True Negatives (TN),False Positives (FP),Normalized Risk Cost
+Logistic Regression,0.72,0.799,0.7833,0.5222,0.6267,0.6929,0.6243,47,13,97,43,0.54
+Decision Tree,0.595,0.6546,0.65,0.3939,0.4906,0.5714,0.4627,39,21,80,60,0.825
+Random Forest,0.785,0.8175,0.6,0.6545,0.6261,0.8643,0.6871,36,24,121,19,0.695
